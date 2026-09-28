@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import psutil
 
+
 def compute_memory_usage(filepath=None):
   """
   Uses the `psutil` library to measure the total amount of RAM used by the
@@ -21,17 +22,47 @@ def compute_memory_usage(filepath=None):
       outfile.write(mem_usage_str)
   return mem_usage_mb
 
+
 if __name__ == "__main__":
   memory_pre = compute_memory_usage('outputs/hw04-1-pandas-pre.txt')
   print(f'{memory_pre:.2f} MB used pre-computation')
+
   s3_uri = 's3://dsan6000-data/acled_events.parquet'
-  # Your code here: load the .parquet file from the given S3 URI, generate the
-  # plot as described in the main notebook, then use plt.savefig() to export it
-  # as yearly_fatalities_pandas.svg
-  
+
+  # Load the ACLED Parquet file into Pandas
+  acled_df = pd.read_parquet(s3_uri)
+
+  # Keep events from 2018 through 2024
+  acled_df = acled_df[
+      (acled_df['year'] >= 2018) &
+      (acled_df['year'] <= 2024)
+  ]
+
+  # Compute total fatalities by year
+  yearly_df = (
+      acled_df
+      .groupby('year', as_index=False)['fatalities']
+      .sum()
+  )
+
+  # Plot yearly fatality counts
+  sns.lineplot(
+      data=yearly_df,
+      x='year',
+      y='fatalities',
+      marker='o'
+  )
+
+  plt.title("ACLED: Yearly Fatality Counts (Pandas)")
+  plt.tight_layout()
+  plt.savefig('images/yearly_fatalities_pandas.svg')
+  plt.close()
+
   memory_post = compute_memory_usage('outputs/hw04-1-pandas-post.txt')
   print(f'{memory_post:.2f} MB used post-computation')
+
   memory_diff = memory_post - memory_pre
   print(f'=> {memory_diff:.2f} MB added via Pandas operation')
+
   with open('outputs/hw04-1-pandas-diff.txt', 'w', encoding='utf-8') as outfile:
     outfile.write(f'{memory_diff:.2f} MB')
